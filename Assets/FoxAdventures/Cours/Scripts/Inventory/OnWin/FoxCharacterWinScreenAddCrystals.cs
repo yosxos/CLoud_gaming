@@ -2,21 +2,14 @@ using UnityEngine;
 
 public class FoxCharacterWinScreenAddCrystals : FoxCharacterWinScreen
 {
- protected override async void OnWin()
-{
-    int crystalsCount = this.FoxCharacterInventory.jewelsCount;
-
-    try
+    protected override void OnWin()
     {
-        await PlayFab.PlayFabClientAPI.AddUserVirtualCurrency("CR", crystalsCount);
-        await PlayFabAPI.AddVirtualCurrency("CR", crystalsCount);
-    }
-    catch
-    {
-        Debug.LogError("Error adding virtual currency");
-    }
+        // Data from the level we just finished
+        int crystalsCount = this.FoxCharacterInventory.jewelsCount;
 
-    base.OnWin();
-}
+        // TODO: Use player stats to register virtual currency increase
 
+        // Call base function from the class "FoxCharacterWinScreen" to display our score on the end screen & show buttons to go back to the Menu
+        base.OnWin();
+    }
 }

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using PlayFab.ClientModels;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -7,9 +6,7 @@ using UnityEngine.Events;
 [System.Serializable]
 public class PlayfabInventoryItem
 {
-public string ItemId;
-public string ItemName;
-public int Quantity;
+
 }
 
 public class PlayfabInventory : MonoBehaviour
@@ -75,30 +72,29 @@ public class PlayfabInventory : MonoBehaviour
         }
     }
 
-public async void UpdateInventory()
-{
-    if (PlayfabAuth.IsLoggedIn == true)
+    public void UpdateInventory()
     {
-        try
+        // Trigger news show if logged in
+        if (PlayfabAuth.IsLoggedIn == true)
         {
-            var result = await PlayFab.PlayFabClientAPI.GetUserInventory(new GetUserInventoryRequest(),);
-            OnGetUserInventorySuccess(result);
+            // TODO: Retrieve inventory from the PlayfabAPI
         }
-        catch
-        {
-            OnGetUserInventoryError();
-        }
-    }
-    this.nextUpdateInventory = PlayfabInventory.UpdateInventoryEvery;
-}
-private void OnGetUserInventorySuccess(PlayFab.InventoryResult result)
-{
-    this.Inventory = result.Items;
-    this.VirtualCurrency = result.VirtualCurrency;
 
-    if (this.OnInventoryUpdateSuccess != null)
-        this.OnInventoryUpdateSuccess.Invoke();
-}
+        // Refresh in X seconds
+        this.nextUpdateInventory = PlayfabInventory.UpdateInventoryEvery;
+    }
+
+    private void OnGetUserInventorySuccess()
+    {
+        //// TODO: Update inventory here
+        // > Update this.Inventory
+        // > Update this.VirtualCurrency
+
+        // Callback
+        if (this.OnInventoryUpdateSuccess != null)
+            this.OnInventoryUpdateSuccess.Invoke();
+    }
+
     private void OnGetUserInventoryError()
     {
         // Log
@@ -110,16 +106,18 @@ private void OnGetUserInventorySuccess(PlayFab.InventoryResult result)
     }
 
     // Accessor
-public bool Possess(string catalogItemID)
-{
-    if (string.IsNullOrWhiteSpace(catalogItemID) == false && this.Inventory != null)
+    public bool Possess(string catalogItemID)
     {
-        for (int i = 0; i < this.Inventory.Count; i++)
+        if (string.IsNullOrWhiteSpace(catalogItemID) == false && this.Inventory != null)
         {
-            if (this.Inventory[i].ItemId == catalogItemID)
-                return true;
+            for (int i = 0; i < this.Inventory.Count; i++)
+            {
+                //// TODO: Find item by... ID ? Name?
+                //bool itemFound = false;
+                //if (itemFound == true)
+                //    return true;
+            }
         }
+        return false;
     }
-    return false;
-}
 }
