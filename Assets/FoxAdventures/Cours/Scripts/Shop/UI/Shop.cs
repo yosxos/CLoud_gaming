@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using PlayFab;
+using PlayFab.ClientModels;
 using UnityEngine;
 
 public class Shop : MonoBehaviour
@@ -30,63 +32,74 @@ public class Shop : MonoBehaviour
         if (PlayfabAuth.IsLoggedIn == true)
         {
             // TODO: Retrieve item from our playfab inventory to know what we already bought
-            this.OnGetCatalogItemsSuccess(); // Fake
+            PlayFabClientAPI.GetCatalogItems(new GetCatalogItemsRequest(), OnGetCatalogItemsSuccess, OnGetCatalogItemsError);
         }
     }
 
-    private void OnGetCatalogItemsSuccess()
+    private void OnGetCatalogItemsSuccess(GetCatalogItemsResult result)
+{
+    // Clear existing entries
+    this.ClearExistingEntries();
+
+    // Retrieve data
+    List<ShopItem> items = new List<ShopItem>();
+    foreach (CatalogItem catalogItem in result.Catalog)
     {
-        // Clear existing entries
-        this.ClearExistingEntries();
+        // Create ShopItem from CatalogItem
+        ShopItem shopItem = new ShopItem();
+        shopItem.itemID = catalogItem.ItemId;
+        shopItem.itemDisplayName = catalogItem.DisplayName;
+        shopItem.itemImageURL = catalogItem.ItemImageUrl;
+        shopItem.isUnique = catalogItem.IsStackable == false;
+        shopItem.itemPrice = (uint)catalogItem.VirtualCurrencyPrices["CR"];
+        items.Add(shopItem);
+    }
 
-        // TODO: Retrieve data
-        List<ShopItem> items = new List<ShopItem>();
-
-        // Go through scores
-        if (items != null)
+    // Instantiate objects and set values
+    if (items != null)
+    {
+        for (int i = 0; i < items.Count; i++)
         {
-            for (int i = 0; i < items.Count; i++)
+            ShopItem shopItem = items[i];
+            if (shopItem != null)
             {
-                ShopItem shopItem = items[i];
-                if (shopItem != null)
+                // Instantiate object copy
+                GameObject shopEntryGameobjectCopy = GameObject.Instantiate(this.shopEntryPrefab, this.shopEntryPrefab.transform.parent);
+                if (shopEntryGameobjectCopy != null)
                 {
-                    // Instantiate object copy
-                    GameObject shopEntryGameobjectCopy = GameObject.Instantiate(this.shopEntryPrefab, this.shopEntryPrefab.transform.parent);
-                    if (shopEntryGameobjectCopy != null)
+                    // Activate as our prefab is deactivated
+                    shopEntryGameobjectCopy.gameObject.SetActive(true);
+
+                    // set name
+                    shopEntryGameobjectCopy.name = ("ShopItemEntry (" + shopItem.itemDisplayName + ")");
+
+                    // Get shop entry
+                    ShopEntry shopEntry = shopEntryGameobjectCopy.GetComponent<ShopEntry>();
+                    if (shopEntry != null)
                     {
-                        // Activate at our prefab is deactivated
-                        shopEntryGameobjectCopy.gameObject.SetActive(true);
+                        // Set value
+                        shopEntry.SetValue(shopItem);
 
-                        // set name
-                        shopEntryGameobjectCopy.name = ("ShopItemEntry (" + shopItem.itemDisplayName + ")");
-
-                        // Get leaderboard entry
-                        ShopEntry shopEntry = shopEntryGameobjectCopy.GetComponent<ShopEntry>();
-                        if (shopEntry != null)
-                        {
-                            // Set value
-                            shopEntry.SetValue(shopItem);
-
-                            // Add to list
-                            if (this.shopEntries == null)
-                                this.shopEntries = new List<ShopEntry>();
-                            this.shopEntries.Add(shopEntry);
-                        }
-                        // Else, destroy object we just spawned
-                        else
-                        {
-                            GameObject.Destroy(shopEntryGameobjectCopy);
-                        }
+                        // Add to list
+                        if (this.shopEntries == null)
+                            this.shopEntries = new List<ShopEntry>();
+                        this.shopEntries.Add(shopEntry);
+                    }
+                    // Else, destroy object we just spawned
+                    else
+                    {
+                        GameObject.Destroy(shopEntryGameobjectCopy);
                     }
                 }
             }
         }
     }
+}
 
-    private void OnGetCatalogItemsError()
+    private void OnGetCatalogItemsError(PlayFabError error)
     {
-        // TODO
-        Debug.LogError("Shop.OnGetCatalogItemsError() - Error: TODO");
+        // Log error
+        Debug.LogError("Shop.OnGetCatalogItemsError() - Error: " + error.GenerateErrorReport());
     }
 
     // Clear existing entries

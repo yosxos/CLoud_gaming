@@ -1,4 +1,6 @@
 using System;
+using PlayFab;
+using PlayFab.ClientModels;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,7 +11,8 @@ public class ShopItem
     public string itemDisplayName = string.Empty;       // Displayed name
     public string itemImageURL = string.Empty;          // Image to display (found in Resources)
     public bool isUnique = false;                       // Unique item or consumable ?
-    public uint itemPrice = 0;                          // Prix 
+    public uint itemPrice = 0;      
+                        // Prix 
 }
 
 public class ShopEntry : MonoBehaviour
@@ -35,7 +38,7 @@ public class ShopEntry : MonoBehaviour
         }
 
         //// Update view to init
-        //this.UpdateView();
+        this.UpdateView();
     }
 
     void OnDisable()
@@ -135,29 +138,45 @@ public class ShopEntry : MonoBehaviour
     }
 
     // Buy item
-    public void TryBuyItem()
+public void TryBuyItem()
+{
+    // Determine some data from the catalog item itself
+    bool isUnique = (this.shopItem.isUnique == true);
+    bool isPossessed = false;
+
+    // If already in inventory
+    if (PlayfabInventory.Instance.Possess(this.shopItem.itemID) == true)
     {
-        // Determine some data from the catalog item itself
-        bool isUnique = (this.shopItem.isUnique == true);
-        bool isPossessed = false;
-
-        // If already in inventory
-        if (PlayfabInventory.Instance.Possess(this.shopItem.itemID) == true)
-        {
-            // Mark as possessed
-            isPossessed = true;
-        }
-
-        // If unique & already possessed, prevent buy
-        if (isUnique == true && isPossessed == true)
-        {
-            Debug.LogWarning("ShopEntry.TryBuyItem() - " + this.gameObject.name + ": Prevent buy as it's unique & already possessed");
-            return;
-        }
-
-        // TODO: Trigger item purchasing
-        this.OnPurchaseItemSuccess();
+        // Mark as possessed
+        isPossessed = true;
     }
+
+    // If unique & already possessed, prevent buy
+    if (isUnique == true && isPossessed == true)
+    {
+        Debug.LogWarning("ShopEntry.TryBuyItem() - " + this.gameObject.name + ": Prevent buy as it's unique & already possessed");
+        return;
+    }
+
+    // Trigger item purchasing
+    var request = new PurchaseItemRequest
+    {
+        ItemId = this.shopItem.itemID,
+        VirtualCurrency = "CR",
+        Price = (int)this.shopItem.itemPrice,
+    };
+
+    PlayFabClientAPI.PurchaseItem(request, result =>
+    {
+        // Purchase succeeded
+        Debug.Log("ShopEntry.TryBuyItem() - " + this.gameObject.name + ": Purchase succeeded");
+        this.OnPurchaseItemSuccess();
+    }, error =>
+    {
+        // Purchase failed
+        Debug.LogWarning("ShopEntry.TryBuyItem() - " + this.gameObject.name + ": Purchase failed: " + error.ErrorMessage);
+    });
+}
 
     private void OnPurchaseItemSuccess()
     {
