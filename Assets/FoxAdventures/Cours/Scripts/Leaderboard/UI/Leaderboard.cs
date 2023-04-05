@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using PlayFab;
+using PlayFab.ClientModels;
 using UnityEngine;
 
 public class Leaderboard : MonoBehaviour
@@ -32,64 +34,61 @@ public class Leaderboard : MonoBehaviour
         // Trigger leaderboard data retrieval
         int startPosition = 0;
         int maxEntries = 10;
+        PlayFabClientAPI.GetLeaderboard(new GetLeaderboardRequest
+        {
+            StartPosition = startPosition,
+            MaxResultsCount = maxEntries,
+            StatisticName = leaderboardName
+        }, OnGetLeaderboardSuccess, OnGetLeaderboardError);
     }
-
-    private void OnGetLeaderboardSuccess()
+    private void OnGetLeaderboardSuccess(GetLeaderboardResult result)
     {
         // Clear existing entries
         this.ClearExistingEntries();
 
-        //// TODO: Use data from input & loop on it?
         // Go through scores
-        //if (data)
+        foreach (var dataEntry in result.Leaderboard)
         {
-            //for (int i=0; i < data.Leaderboard.Count; i++)
+            // Get data
+            string username = dataEntry.DisplayName;
+            int statValue = dataEntry.StatValue;
+
+            // Instantiate object copy
+            GameObject leaderboardEntryGameobjectCopy = GameObject.Instantiate(this.leaderboardEntryPrefab, this.leaderboardEntryPrefab.transform.parent);
+            if (leaderboardEntryGameobjectCopy != null)
             {
-                //// Use data from input & loop on it?
-                //if (dataEntry)
+                // Activate at our prefab is deactivated
+                leaderboardEntryGameobjectCopy.gameObject.SetActive(true);
+
+                // Get leaderboard entry
+                LeaderboardEntry leaderboardEntry = leaderboardEntryGameobjectCopy.GetComponent<LeaderboardEntry>();
+                if (leaderboardEntry != null)
                 {
-                    // Get data
-                    string username = string.Empty;                         // TODO: Get user leaderboard name
-                    int statValue = 0;                                      // Get score we want to display
+                    // Fix value
+                    if (isReversed == true)
+                        statValue *= -1;
 
-                    // Instantiate object copy
-                    GameObject leaderboardEntryGameobjectCopy = GameObject.Instantiate(this.leaderboardEntryPrefab, this.leaderboardEntryPrefab.transform.parent);
-                    if (leaderboardEntryGameobjectCopy != null)
-                    {
-                        // Activate at our prefab is deactivated
-                        leaderboardEntryGameobjectCopy.gameObject.SetActive(true);
+                    // Set value
+                    leaderboardEntry.SetValue(username, (isFloatExpected == true ? ((float)statValue / 100.0f).ToString("0.00") : statValue.ToString()));
 
-                        // Get leaderboard entry
-                        LeaderboardEntry leaderboardEntry = leaderboardEntryGameobjectCopy.GetComponent<LeaderboardEntry>();
-                        if (leaderboardEntry != null)
-                        {
-                            // Fix value
-                            if (isReversed == true)
-                                statValue *= -1;
-
-                            // Set value
-                            leaderboardEntry.SetValue(username, (isFloatExpected == true ? ((float)statValue / 100.0f).ToString("0.00") : statValue.ToString()));
-
-                            // Add to list
-                            if (this.leaderboardEntries == null)
-                                this.leaderboardEntries = new List<LeaderboardEntry>();
-                            this.leaderboardEntries.Add(leaderboardEntry);
-                        }
-                        // Else, destroy object we just spawned
-                        else
-                        {
-                            GameObject.Destroy(leaderboardEntryGameobjectCopy);
-                        }
-                    }
+                    // Add to list
+                    if (this.leaderboardEntries == null)
+                        this.leaderboardEntries = new List<LeaderboardEntry>();
+                    this.leaderboardEntries.Add(leaderboardEntry);
+                }
+                // Else, destroy object we just spawned
+                else
+                {
+                    GameObject.Destroy(leaderboardEntryGameobjectCopy);
                 }
             }
         }
     }
 
-    private void OnGetLeaderboardError()
+    private void OnGetLeaderboardError(PlayFabError error)
     {
-        // Log
-        Debug.LogError("Leaderboard.OnGetLeaderboardError() - Error: TODO");
+        // Log error
+        Debug.LogError($"Leaderboard.OnGetLeaderboardError() - Error: {error.ErrorMessage}");
     }
 
     // Clear existing entries

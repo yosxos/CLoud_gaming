@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using PlayFab;
+using PlayFab.ClientModels;
 
 public class FoxCharacterWinScreenLeaderboard : FoxCharacterWinScreenAddCrystals
 {
@@ -13,13 +15,11 @@ public class FoxCharacterWinScreenLeaderboard : FoxCharacterWinScreenAddCrystals
             int crystalsCount = foxCharacterInventory.jewelsCount;
             float levelDuration = Time.timeSinceLevelLoad;
 
-            // TODO: Update our best score on level 1
-            // >> Desired name of entry: level1_crystals
-            // >> Desired value of entry: crystalsCount
+            // Update our best score on level 1 for crystals count
+            UpdateLeaderboard("level1_crystals", crystalsCount);
 
-            // TODO: Update our best score on level 1
-            // >> Desired name of entry: level1_speedrun
-            // >> Desired value of entry: (Mathf.FloorToInt(levelDuration * 100.0f * -1.0f))
+            // Update our best score on level 1 for speedrun
+            UpdateLeaderboard("level1_speedrun", (int)Mathf.Floor(levelDuration * 100.0f * -1.0f));
             //// Note: We multiplied the time by -1 because leaderboards in Playfab are always ranked as "more is best"
         }
 
@@ -27,15 +27,32 @@ public class FoxCharacterWinScreenLeaderboard : FoxCharacterWinScreenAddCrystals
         base.OnWin();
     }
 
-    private void OnUpdatePlayerStatisticsRequestSuccess()
+    private void OnUpdatePlayerStatisticsRequestSuccess(UpdatePlayerStatisticsResult result)
     {
         // Log
-        Debug.Log("FoxCharacterWinScreenLeaderboard.FoxCharacterWinScreenLeaderboard() - Error: TODO");
+        Debug.Log("Leaderboard updated successfully");
     }
 
-    private void OnUpdatePlayerStatisticsRequestError()
+    private void OnUpdatePlayerStatisticsRequestError(PlayFabError error)
     {
-        // Log
-        Debug.LogError("FoxCharacterWinScreenLeaderboard.OnUpdatePlayerStatisticsRequestError() - Error: TODO");
+        // Log error
+        Debug.LogError("Leaderboard update failed: " + error.ErrorMessage);
+    }
+
+    private void UpdateLeaderboard(string leaderboardName, int score)
+    {
+        var request = new UpdatePlayerStatisticsRequest
+        {
+            Statistics = new List<StatisticUpdate>
+            {
+                new StatisticUpdate
+                {
+                    StatisticName = leaderboardName,
+                    Value = score
+                }
+            }
+        };
+
+        PlayFabClientAPI.UpdatePlayerStatistics(request, OnUpdatePlayerStatisticsRequestSuccess, OnUpdatePlayerStatisticsRequestError);
     }
 }
