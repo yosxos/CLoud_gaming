@@ -39,20 +39,43 @@ public class FoxCharacterWinScreenLeaderboard : FoxCharacterWinScreenAddCrystals
         Debug.LogError("Leaderboard update failed: " + error.ErrorMessage);
     }
 
-    private void UpdateLeaderboard(string leaderboardName, int score)
+private void UpdateLeaderboard(string leaderboardName, int score)
+{
+    PlayFabClientAPI.GetPlayerStatistics(new GetPlayerStatisticsRequest
     {
-        var request = new UpdatePlayerStatisticsRequest
+        StatisticNames = new List<string> { leaderboardName }
+    }, result =>
+    {
+        // Retrieve the current value of the leaderboard statistic
+        int currentScore = 0;
+        if (result.Statistics != null && result.Statistics.Count > 0)
         {
-            Statistics = new List<StatisticUpdate>
-            {
-                new StatisticUpdate
-                {
-                    StatisticName = leaderboardName,
-                    Value = score
-                }
-            }
-        };
+            currentScore = result.Statistics[0].Value;
+        }
 
-        PlayFabClientAPI.UpdatePlayerStatistics(request, OnUpdatePlayerStatisticsRequestSuccess, OnUpdatePlayerStatisticsRequestError);
-    }
+        // Update the leaderboard only if the new score is higher than the current one
+        if (score > currentScore)
+        {
+            var request = new UpdatePlayerStatisticsRequest
+            {
+                Statistics = new List<StatisticUpdate>
+                {
+                    new StatisticUpdate
+                    {
+                        StatisticName = leaderboardName,
+                        Value = score
+                    }
+                }
+            };
+
+            PlayFabClientAPI.UpdatePlayerStatistics(request, OnUpdatePlayerStatisticsRequestSuccess, OnUpdatePlayerStatisticsRequestError);
+        }
+        else
+        {
+            // Log that the leaderboard was not updated because the new score is not higher than the current one
+            Debug.Log("Leaderboard not updated because the new score is not higher than the current one");
+        }
+    }, OnUpdatePlayerStatisticsRequestError);
+}
+
 }
