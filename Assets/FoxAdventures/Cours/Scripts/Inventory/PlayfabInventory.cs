@@ -1,123 +1,114 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using PlayFab;
+using PlayFab.ClientModels;
 
-// TODO: Inherit or fill data in this class
 [System.Serializable]
 public class PlayfabInventoryItem
 {
-
+public string ItemId;
+public string DisplayName;
+public int Count;
 }
 
 public class PlayfabInventory : MonoBehaviour
 {
-    private static PlayfabInventory instance = null;
-    public static PlayfabInventory Instance
+private static PlayfabInventory instance = null;
+public static PlayfabInventory Instance
+{
+get
+{
+if (instance == null)
+instance = FindObjectOfType<PlayfabInventory>();
+return instance;
+}
+}
+[Header("Inventory")]
+public List<PlayfabInventoryItem> Inventory;
+public Dictionary<string, int> VirtualCurrency;
+
+[Header("Events")]
+public UnityEvent OnInventoryUpdateSuccess = new UnityEvent();
+public UnityEvent OnInventoryUpdateError = new UnityEvent();
+
+void OnEnable()
+{
+    if (PlayfabInventory.Instance != null && PlayfabInventory.Instance != this)
     {
-        get
-        {
-            //if (instance == null)
-            //    instance = FindObjectOfType<PlayfabInventory>();
-            return instance;
-        }
+        GameObject.Destroy(this.gameObject);
     }
-
-    [Header("Inventory")]
-    /// <summary>
-    /// Array of inventory items belonging to the user.
-    /// </summary>
-    public List<PlayfabInventoryItem> Inventory;
-    /// <summary>
-    /// Array of virtual currency balance(s) belonging to the user.
-    /// </summary>
-    public Dictionary<string, int> VirtualCurrency;
-
-    [Header("Events")]
-    public UnityEvent OnInventoryUpdateSuccess = new UnityEvent();
-    public UnityEvent OnInventoryUpdateError = new UnityEvent();
-
-    // Start is called before the first frame update
-    void OnEnable()
+    else
     {
-        // Only keep one singleton if another is already set
-        if (PlayfabInventory.Instance != null && PlayfabInventory.Instance != this)
-        {
-            GameObject.Destroy(this.gameObject);
-        }
-        // No singleton set or its us
-        else
-        {
-            // Set ourselves as the singleton
-            PlayfabInventory.instance = this;
+        PlayfabInventory.instance = this;
 
-            // Keep cross scene ?
-            DontDestroyOnLoad(this.gameObject);
+        DontDestroyOnLoad(this.gameObject);
 
-            // Update Inventory
-            this.UpdateInventory();
-        }
+        this.UpdateInventory();
     }
+}
 
-    private float nextUpdateInventory = 0.0f;
-    private const float UpdateInventoryEvery = 15.0f;
-    void Update()
+private float nextUpdateInventory = 0.0f;
+private const float UpdateInventoryEvery = 15.0f;
+void Update()
+{
+    if (this.nextUpdateInventory > 0.0f)
+        this.nextUpdateInventory -= Time.deltaTime;
+    
+    if (this.nextUpdateInventory <= 0.0f)
     {
-        if (this.nextUpdateInventory > 0.0f)
-            this.nextUpdateInventory -= Time.deltaTime;
-        
-        if (this.nextUpdateInventory <= 0.0f)
-        {
-            this.UpdateInventory();
-            this.nextUpdateInventory = PlayfabInventory.UpdateInventoryEvery;
-        }
-    }
-
-    public void UpdateInventory()
-    {
-        // Trigger news show if logged in
-        if (PlayfabAuth.IsLoggedIn == true)
-        {
-            // TODO: Retrieve inventory from the PlayfabAPI
-        }
-
-        // Refresh in X seconds
+        this.UpdateInventory();
         this.nextUpdateInventory = PlayfabInventory.UpdateInventoryEvery;
     }
+}
 
-    private void OnGetUserInventorySuccess()
+public void UpdateInventory()
+{
+    if (PlayfabAuth.IsLoggedIn == true)
     {
-        //// TODO: Update inventory here
-        // > Update this.Inventory
-        // > Update this.VirtualCurrency
-
-        // Callback
-        if (this.OnInventoryUpdateSuccess != null)
-            this.OnInventoryUpdateSuccess.Invoke();
+        var request = new GetUserInventoryRequest();
+        PlayFabClientAPI.GetUserInventory(request, OnGetUserInventorySuccess, OnGetUserInventoryError);
     }
 
-    private void OnGetUserInventoryError()
-    {
-        // Log
-        Debug.LogError("PlayfabInventory.OnGetUserInventoryError() - Error: TODO");
+    this.nextUpdateInventory = PlayfabInventory.UpdateInventoryEvery;
+}
 
-        // Callback
-        if (this.OnInventoryUpdateError != null)
-            this.OnInventoryUpdateError.Invoke();
+private void OnGetUserInventorySuccess(GetUserInventoryResult result)
+{
+    this.Inventory = new List<PlayfabInventoryItem>();
+    foreach (var item in result.Inventory)
+    {
+        PlayfabInventoryItem newItem = new PlayfabInventoryItem();
+        newItem.ItemId = item.ItemId;
+        newItem.DisplayName = item.DisplayName;
+        newItem.Count = item.RemainingUses.Value;
+        this.Inventory.Add(newItem);
     }
 
-    // Accessor
-    public bool Possess(string catalogItemID)
+    this.VirtualCurrency = result.VirtualCurrency;
+
+    if (this.OnInventoryUpdateSuccess != null)
+        this.OnInventoryUpdateSuccess.Invoke();
+}
+
+private void OnGetUserInventoryError(PlayFabError error)
+{
+    Debug.LogError("PlayfabInventory.OnGetUserInventoryError() - Error: " + error.GenerateErrorReport());
+
+    if (this.OnInventoryUpdateError != null)
+        this.OnInventoryUpdateError.Invoke();
+}
+
+public bool Possess(string catalogItemID)
+{
+    if (!string.IsNullOrWhiteSpace(catalogItemID) && this.Inventory != null)
     {
-        if (string.IsNullOrWhiteSpace(catalogItemID) == false && this.Inventory != null)
+        foreach (var item in this.Inventory)
         {
-            for (int i = 0; i < this.Inventory.Count; i++)
-            {
-                //// TODO: Find item by... ID ? Name?
-                //bool itemFound = false;
-                //if (itemFound == true)
-                //    return true;
-            }
+            if (item.ItemId == catalogItemID)
+                return true;
         }
-        return false;
     }
+    return false;
+}
 }

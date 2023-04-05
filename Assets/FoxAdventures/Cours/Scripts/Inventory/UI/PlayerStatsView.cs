@@ -1,3 +1,5 @@
+using PlayFab;
+using PlayFab.ClientModels;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -49,71 +51,83 @@ public class PlayerStatsView : MonoBehaviour
     private void UpdateUserAccountInfos()
     {
         // TODO: Call Playfab to retrieve various infos from our online account (ex. username, device or account ID, etc)
-        this.OnUpdateUserAccountInfosSuccess();
+        var request = new GetAccountInfoRequest();
+        PlayFabClientAPI.GetAccountInfo(request, OnUpdateUserAccountInfosSuccess, OnUpdateUserAccountInfosError);
     }
 
-    private void OnUpdateUserAccountInfosSuccess()
+    private void OnUpdateUserAccountInfosSuccess(GetAccountInfoResult result)
     {
         // Log
         Debug.LogError("PlayerStatsView.OnUpdateUserAccountInfosSuccess() - Error: TODO");
 
-        // TODO: Update username from remote service?
-
+        // Update username from remote service?
+        if (this.usernameText != null)
+        {
+            this.usernameText.gameObject.SetActive(true);
+            this.usernameText.text = result.AccountInfo.Username;
+        }
         // Show
         this.Show();
     }
 
-    private void OnUpdateUserAccountInfosError()
+    private void OnUpdateUserAccountInfosError(PlayFabError error)
     {
-        // Log
-        Debug.LogError("PlayerStatsView.OnUpdateUserAccountInfosError() - Error: TODO");
+        // Log error
+        Debug.LogError("PlayerStatsView.OnUpdateUserAccountInfosError() - Error: " + error.ErrorMessage);
+
+        // TODO: Handle error appropriately
     }
 
-    // Update User Stats
-    private void UpdateUserStats()
+
+   // Update User Stats
+private void UpdateUserStats()
+{
+    var request = new GetUserInventoryRequest();
+    PlayFabClientAPI.GetUserInventory(request, OnGetUserInventorySuccess, OnGetUserInventoryError);
+}
+
+private void OnGetUserInventorySuccess(GetUserInventoryResult result)
+{
+    // Crystals we have
+    int crystalsCount = 0;
+
+    // Get crystals count from result
+    if (result.VirtualCurrency.TryGetValue("CR", out int crystals))
     {
-        // TODO: Call Playfab to retrieve our player's data/inventory
-        //       in order to count the crystals (virtual currency? item in inventory?) we have
-        this.OnGetUserInventorySuccess();   // Fake
+        crystalsCount = crystals;
     }
 
-    private void OnGetUserInventorySuccess()
+    // Update crystals count
+    if (this.crystalsCountText != null)
     {
-        // Crystals we have
-        int crystalsCount = 0;
+        this.crystalsCountText.gameObject.SetActive(true);
+        this.crystalsCountText.text = crystalsCount.ToString();
+    }
 
-        // TODO: Get crystals from Playfab feedback
+    if (this.crystalsIcon != null)
+    {
+        this.crystalsIcon.gameObject.SetActive(true);
+    }
 
-        // Update crystals count
+    // Show
+    this.Show();
+}
+
+private void OnGetUserInventoryError(PlayFabError error)
+{
+    // Update crystals count
+    {
+        // Update crystal text
+        if (this.crystalsCountText != null)
         {
-            if (this.crystalsCountText != null)
-            {
-                this.crystalsCountText.gameObject.SetActive(true);
-                this.crystalsCountText.text = crystalsCount.ToString();
-            }
-
-            if (this.crystalsIcon != null)
-                this.crystalsIcon.gameObject.SetActive(true);
+            this.crystalsCountText.gameObject.SetActive(true);
+            this.crystalsCountText.text = "???";
         }
 
-        // Show
-        this.Show();
+        // Show crystal icon
+        if (this.crystalsIcon != null)
+            this.crystalsIcon.gameObject.SetActive(true);
     }
+}
 
-    private void OnGetUserInventoryError()
-    {
-        // Update crystals count
-        {
-            // Update crystal text
-            if (this.crystalsCountText != null)
-            {
-                this.crystalsCountText.gameObject.SetActive(true);
-                this.crystalsCountText.text = "???";
-            }
-
-            // Show crystal icon
-            if (this.crystalsIcon != null)
-                this.crystalsIcon.gameObject.SetActive(true);
-        }
-    }
 }
